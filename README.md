@@ -2,6 +2,22 @@
 
 Implementation of ECDSA operations in circom.
 
+## Set up for ASCS project goal:
+- Run `yarn` at the top level to install npm dependencies (`snarkjs` and `circomlib`). 
+
+- Download `circom` version `>= 2.0.2` on your system. Installation instructions [here](https://docs.circom.io/getting-started/installation/).
+
+- Download ``ptau`` file with power 21 from the Hermez trusted setup from [this repository](https://github.com/iden3/snarkjs#7-prepare-phase-2) and copy it into the `circuits` subdirectory of the project, with the name `pot20_final.ptau`.
+
+- Build key and wittness by running `yarn build:groupsig` at the top level. This build process will create `r1cs` and `wasm` files for witness generation, as well as a `zkey` file (proving and verifying keys) in a the folder `./build/groupsig`. If no `zkey` file was generated and you are on windows, then:
+    1. Install snarkjs gloablly like so: `npm install -g snarkjs`
+    2. Instead of `yarn build:groupsig`, run `cd ./scripts/groupsig && ./windows_build_groupsig.sh` in Git Bash terminal
+
+- Test set up by running groupsig demo through `yarn groupsig-demo` at the top level and follow the instructions in your terminal. [Randomly generated](https://privatekeys.pw/keys/ethereum/random) valid inptuis for demo:
+    1. private key: 0x3d87d34a290b124ad0b29b87053363d5dca57cd02650e4b1f4cc75e9c8275648 --> associated eth address: 0x68F3A3AfD9Cbf1cb27b5359b79B563A5E423115a
+    2. addr1: 0x0F2D3bF9ce11737566E5bcef7222Df31C0D90395
+    3. addr2: 0x46a8801DA492f6d2eADbd3ec30f4255c29aB656b
+
 ## Project overview
 
 This repository provides proof-of-concept implementations of ECDSA operations in circom. **These implementations are for demonstration purposes only**.  These circuits are not audited, and this is not intended to be used as a library for production-grade applications.
@@ -9,8 +25,7 @@ This repository provides proof-of-concept implementations of ECDSA operations in
 Circuits can be found in `circuits`. `scripts` contains various utility scripts (most importantly, scripts for building a few example zkSNARKs using the ECDSA circuit primitives). `test` contains some unit tests for the circuits, mostly for witness generation.
 
 ## Install dependencies
-
-- Run `yarn` at the top level to install npm dependencies (`snarkjs` and `circomlib`).
+- Run `yarn` at the top level to install npm dependencies (`snarkjs` and `circomlib`). 
 - You'll also need `circom` version `>= 2.0.2` on your system. Installation instructions [here](https://docs.circom.io/getting-started/installation/).
 - If you want to build the `pubkeygen`, `eth_addr`, and `groupsig` circuits, you'll need to download a Powers of Tau file with `2^20` constraints and copy it into the `circuits` subdirectory of the project, with the name `pot20_final.ptau`. We do not provide such a file in this repo due to its large size. You can download and copy Powers of Tau files from the Hermez trusted setup from [this repository](https://github.com/iden3/snarkjs#7-prepare-phase-2).
 - If you want to build the `verify` circuits, you'll also need a Powers of Tau file that can support at least `2^21` constraints (place it in the same directory as above with the same naming convention).
