@@ -23,14 +23,28 @@ Implementation of ECDSA operations in circom.
 ## Requirements for ASCS project goal
 1. Enhanced security:
     1. replay attack: solved with nonce logic
-2. Variable number of eth addresses as public input of
+2. Variable number of eth addresses as public input of circuit
 
 ## Security analysis
 The upper requirements ensure enhanced security but other security matters must be consdiered and are divide in security issues for production and for the potential future of the project:
 
 ### Security issues for production
-1. **Trusted Setup**
+### Trusted Setup
 Circom with Groth16 requires a Phase 2 Trusted Setup. If the trust ceremony is not done correctly, or if the "Power of Tau" file is compromised (as it is the case for this prototype since we download a public ptau file), someone could generate fake proofs (forgeries) without knowing any private key.
+
+### Public key validation
+The risk of missing public key validation boils down to **Proof Malleability** and **Identity Forgery**. In a production environment, if you don't constrain the public key to the rules of the elliptic curve ( for Ethereum), you leave the door open for mathematically "illegal" inputs that can trick the circuit.
+
+The Risks are:
+1. **Scalar Malleability:** The curve order (n) is slightly smaller than the field size (2^256). If you don't check that , a user could provide . Both might result in the same Ethereum address, allowing a user to generate two different valid proofs for the same "action," potentially bypassing double-spending or replay protections.
+2. **Non-existent Points:** Without point validation (y^2 = x^3 + 7), a prover could potentially input a "fake" public key that doesn't exist on the curve but, through a collision in the hashing process (PubKey to Address), matches a target address.
+3. **Edge Case Exploits:** Values like `0` or `1` can cause certain elliptic curve library components to behave unexpectedly (e.g., returning a "point at infinity"), which might result in an address that doesn't actually belong to anyone but can be claimed by a malicious prover.
+
+The potential solutions for production are:
+1. Range Constraints (The Scalar Check): You must ensure the private key is within the valid range of the secp256k1 group order. **How:** Use a `LessThan` component or a dedicated `BigLessThan` (since it's 256 bits) to compare the `privkey` against the constant  (the curve order).
+2. Point-on-Curve Verification: If your `PrivKeyToAddr` component doesn't already do it, you must explicitly check the public key coordinates. **How:** Add a constraint that verifies the coordinates  of the public key satisfy the equation .
+3. Use Audited Libraries: Don't write the curve math from scratch. For production, integrate tested circuits from established repositories. **Recommendation:** Use the `PrivKeyToAddr` or `VerifyPubkey` templates from the **[circom-ecdsa](https://github.com/0xPARC/circom-ecdsa)** library. These components are specifically designed to handle the 256-bit "BigInt" math and curve constraints required for Ethereum-compatible keys.
+
 
 ### Potential future security issues
 1. **Deterministic Signatures (MiMC Vulnerability)**

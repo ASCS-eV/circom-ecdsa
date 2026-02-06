@@ -73,7 +73,7 @@ template Main(n, k) {
     mimcAttestation.ins[0] <== msg;
     mimcAttestation.ins[1] <== nonce; // bind the proof to this specific nonce
     for (var i = 0; i < k; i++) {
-        mimcAttestation.ins[i+2] <== privkey[i];
+        mimcAttestation.ins[i+2] <== privkey[i]; // enforces: "I know that the private key of myAddr signed msg"
     }
     mimcAttestation.k <== 0;
     msgAttestation <== mimcAttestation.outs[0];
