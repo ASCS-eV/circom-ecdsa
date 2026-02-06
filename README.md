@@ -2,7 +2,7 @@
 
 Implementation of ECDSA operations in circom.
 
-## Set up for ASCS project goal:
+## Set up for ASCS project goal
 - Run `yarn` at the top level to install npm dependencies (`snarkjs` and `circomlib`). 
 
 - Download `circom` version `>= 2.0.2` on your system. Installation instructions [here](https://docs.circom.io/getting-started/installation/).
@@ -12,11 +12,40 @@ Implementation of ECDSA operations in circom.
 - Build key and wittness by running `yarn build:groupsig` at the top level. This build process will create `r1cs` and `wasm` files for witness generation, as well as a `zkey` file (proving and verifying keys) in a the folder `./build/groupsig`. If no `zkey` file was generated and you are on windows, then:
     1. Install snarkjs gloablly like so: `npm install -g snarkjs`
     2. Instead of `yarn build:groupsig`, run `cd ./scripts/groupsig && ./windows_build_groupsig.sh` in Git Bash terminal
+    3. Optional: move back to root folder (required for next step): `cd ../..`
 
 - Test set up by running groupsig demo through `yarn groupsig-demo` at the top level and follow the instructions in your terminal. [Randomly generated](https://privatekeys.pw/keys/ethereum/random) valid inptuis for demo:
     1. private key: 0x3d87d34a290b124ad0b29b87053363d5dca57cd02650e4b1f4cc75e9c8275648 --> associated eth address: 0x68F3A3AfD9Cbf1cb27b5359b79B563A5E423115a
     2. addr1: 0x0F2D3bF9ce11737566E5bcef7222Df31C0D90395
     3. addr2: 0x46a8801DA492f6d2eADbd3ec30f4255c29aB656b
+    4. nonce: 6789
+
+## Requirements for ASCS project goal
+1. Enhanced security:
+    1. replay attack: solved with nonce logic
+2. Variable number of eth addresses as public input of
+
+## Security analysis
+The upper requirements ensure enhanced security but other security matters must be consdiered and are divide in security issues for production and for the potential future of the project:
+
+### Security issues for production
+1. **Trusted Setup**
+Circom with Groth16 requires a Phase 2 Trusted Setup. If the trust ceremony is not done correctly, or if the "Power of Tau" file is compromised (as it is the case for this prototype since we download a public ptau file), someone could generate fake proofs (forgeries) without knowing any private key.
+
+### Potential future security issues
+1. **Deterministic Signatures (MiMC Vulnerability)**
+    - *Risk*: The groupsig circuit uses mimc(msg, privkey). If you ever sign the same msg with the same privkey but a different nonce, you aren't leaking the key, but you are creating a linkable trail.
+    - *Recommendation*: Ensure your attestation always includes all unique context (like a domain_separator) to ensure signatures cannot be "imported" from one app to another.
+    - *Note*: In ASCS's use case, we can neglect this security issue (as of now) because the msg always contains the CID of the digital data asset uploaded to IPFS and to be published on the digital data asset marketplace. Therefore, the CID ensures domain seperation!
+2. **Forgery via Public Input Manipulation**
+    - *Risk*: The groupsig circuit proves membership in a list of ETH addresses but an attacker could take your valid proof and simply change the list of ETH addresses to different addresses. If the verifier doesn't check the entire set of addresses against a trusted root (like a Merkle Root), the proof is useless.
+    - *Recommendation*: Instead of passing a lsit of ETH addresses, pass a Merkle Root as a public input and use a Merkle Proof (private input) to prove your address is in the set.
+    - *Note*: In ASCS's use case, we can neglect this security issue (as of now) because the verifier is an on-chain smart contract which checks if the ETH addresses are actually part of the same and correct company by considering the did:ethr-based on-chain company structre.
+3. **The "Frozen Heart" (Input Aliasing)**
+    - *Risk*: Circom signals are in a prime field.If msg or nonce are larger than the field size ($p \approx 2^{254}$), they will wrap around (modulo $p$). An attacker could provide a msg that is OriginalMsg + p, and the circuit would produce the exact same attestation.
+    - *Recommendation*: Always constrain your public inputs to be within a specific bit range (e.g., 253 bits) if they are derived from external data like Ethereum hashes.
+    - *Note*: TODO: think about if this is an issue for the ASCS's use case?
+
 
 ## Project overview
 
