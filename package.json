@@ -10,7 +10,8 @@
     "build:verify": "cd ./scripts/verify && ./build_verify.sh",
     "build:eth_addr": "cd ./scripts/eth_addr && ./build_eth_addr.sh",
     "test": "NODE_OPTIONS=--max_old_space_size=56000 mocha -r ts-node/register 'test/**/*.ts'",
-    "groupsig-demo": "npx ts-node scripts/groupsign_cli.ts"
+    "groupsig-demo": "npx ts-node scripts/groupsign_cli.ts",
+    "prototype-demo": "npx ts-node scripts/variable_groupsign_cli.ts"
   },
   "repository": "git@github.com:0xPARC/circom-ecdsa.git",
   "author": "0xPARC <hello@0xparc.org>",
