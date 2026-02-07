@@ -24,10 +24,8 @@ include "../../circuits/eth_addr.circom";
 */
 
 // TODO:
-// 1. add nonce for safegarding against replac attacks
-// 2. make scalable so that instead of addr1, addr2, and addr3 an array is used called: addrs
-// 3. fix: No domain separation issue casued by cross-context replay
-// 4. check validity of public key
+// - Make msg private to avoid public being able to find out its signer by checking the public msg with every eth address in the public addrs[m] input
+// - Adapt msg logic for use case and ensure domain separation by that msg is "publish-${cid}-for-${company}-on-${marketplace}"
 
 // n: bits per word, k: number of words for privkey, m: number of addresses in group
 template Main(n, k, m) {
