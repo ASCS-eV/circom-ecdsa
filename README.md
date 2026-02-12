@@ -34,7 +34,9 @@ Implementation of ECDSA operations in circom.
 ## Requirements for ASCS project goal
 1. Enhanced security:
     1. replay attack: solved with nonce logic
+    2. domain seperation
 2. Variable number of eth addresses as public input of circuit
+3. Enhanced privacy by making the signature a private input of the circuit
 
 ## Security analysis
 The upper requirements ensure enhanced security but other security matters must be consdiered and are divide in security issues for production and for the potential future of the project:
@@ -72,6 +74,17 @@ MiMC is used because it is cheap and easy in zero-knowledge circuits and suffici
     - *Recommendation*: Always constrain your public inputs to be within a specific bit range (e.g., 253 bits) if they are derived from external data like Ethereum hashes.
     - *Note*: TODO: think about if this is an issue for the ASCS's use case?
 
+## Potential optimizations
+1. **Membership Proof Is O(m)**
+The current circuit verifies group membership by computing the product \\((myAddr - addrs[0]) \\times (myAddr - addrs[1]) \\times \\dots \\times (myAddr - addrs[m-1])\\), which requires one multiplication per group member. This means that the proving cost and circuit size grow linearly with the number of addresses in the group. As the group becomes large, this approach quickly becomes impractical due to high constraint counts, slower proof generation, and higher verification costs. A more scalable alternative is to use a Merkle tree or cryptographic accumulator. In this design, all valid addresses are committed into a single root hash, and the prover supplies a Merkle proof showing that their address is included in the tree. This reduces the complexity from O(m) to O(log m), making it feasible to support thousands or millions of members. Merkle-based membership proofs are widely used in modern zero-knowledge systems and are well-supported by existing Circom libraries, making them a practical and secure upgrade.
+
+2. **Private Key Inside Circuit**
+The circuit directly includes the full Ethereum private key as a private witness and uses it both to derive the address and to generate the message attestation. While this is functionally correct, it significantly increases circuit complexity and proof generation time, because elliptic-curve operations and full key handling are expensive in zero-knowledge environments. It also increases the risk surface: if the prover’s environment is compromised, exposure of the witness leaks the actual Ethereum private key, which may control real funds. A better approach is to avoid embedding the long-term private key in the circuit and instead use derived or committed secrets. For example, the user can generate a random secret, commit to it on-chain, and link it to their address through a one-time signature or registration step. The circuit then proves knowledge of this secret rather than the main private key. Another option is to use nullifiers or hierarchical keys, where a dedicated ZK key is derived from the Ethereum key and used only for proofs. These approaches reduce computational cost, improve security isolation, and prevent direct exposure of high-value private keys inside zero-knowledge circuits.
+
+---
+---
+---
+# README OF CRICOM-ECSDSA
 
 ## Project overview
 
