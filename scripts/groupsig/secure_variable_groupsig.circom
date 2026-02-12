@@ -71,7 +71,7 @@ template Main(n, k, m) {
     0 === products[m-1]; // enforces: "I know myAddr is part of group (= addrs[m])"
     
     // produce signature
-    component mimcAttestation = MiMCSponge(k+2, 220, 1); //+2 bcause of msg and nonce
+    component mimcAttestation = MiMCSponge(k+2, 220, 1); //+2 because of msg and nonce
     mimcAttestation.ins[0] <== msg;
     mimcAttestation.ins[1] <== nonce; // bind the proof to this specific nonce
     for (var i = 0; i < k; i++) {

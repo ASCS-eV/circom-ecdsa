@@ -31,6 +31,11 @@ Implementation of ECDSA operations in circom.
     6. msg: bafybeicn7i3soqdgr7dwnrwytgq4zxy7a5jpkizrvhm5mv6bgjd32wm3q4
     6. nonce: 6789
 
+## Build and test final circuit for ASCS project goal
+1. setting `SIZES=(2 3 4)` in script: `./scripts/groupsig/build_private_groupsig_circuits.sh` (default is 2 to 4)
+2. executing the script by running ``cd ./scripts/groupsig && ./build_private_groupsig_circuits.sh`` while root folder of repo
+3. test by running `node ./scripts/test_private_secure_variable_groupsig.js` while root folder of repo
+
 ## Requirements for ASCS project goal
 1. Enhanced security:
     1. replay attack: solved with nonce logic
