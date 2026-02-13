@@ -1,57 +1,178 @@
 #!/bin/bash
-set -e # Exit on error
+set -e
 
 export MSYS_NO_PATHCONV=1
 
-# Paths
+
+# --------------------------------
+# Config
+# --------------------------------
+
 PHASE1=../../circuits/pot20_final.ptau
 CIRCUIT_NAME=private_secure_variable_groupsig
 BUILD_BASE=../../build/groupsig
+VERIFIER_DIR="$BUILD_BASE/verifiers"
 
-# Check for Phase 1
+
+# --------------------------------
+# Check Phase1
+# --------------------------------
+
 if [ ! -f "$PHASE1" ]; then
-    echo "Error: Phase 1 ptau file not found at $PHASE1"
+    echo "❌ Phase1 ptau not found: $PHASE1"
     exit 1
 fi
 
-# Group sizes we want to support
-SIZES=(3)
 
-for m in "${SIZES[@]}"
+# --------------------------------
+# User Input
+# --------------------------------
+
+read -p "Enter maximum group size (>=2): " MAX_M
+
+if ! [[ "$MAX_M" =~ ^[0-9]+$ ]] || [ "$MAX_M" -lt 2 ]; then
+    echo "❌ Invalid group size"
+    exit 1
+fi
+
+
+read -p "Create Solidity verifiers? (y/n): " MAKE_VERIFIERS
+
+
+if [[ "$MAKE_VERIFIERS" == "y" || "$MAKE_VERIFIERS" == "Y" ]]; then
+    MAKE_VERIFIERS=true
+    mkdir -p "$VERIFIER_DIR"
+else
+    MAKE_VERIFIERS=false
+fi
+
+
+echo
+echo "==================================="
+echo " Max group size: $MAX_M"
+echo " Generate verifiers: $MAKE_VERIFIERS"
+echo "==================================="
+echo
+
+
+# --------------------------------
+# Build Loop
+# --------------------------------
+
+for (( m=2; m<=MAX_M; m++ ))
 do
+
     echo "-------------------------------------------"
     echo "🔨 BUILDING FOR GROUP SIZE: m = $m"
     echo "-------------------------------------------"
 
-    # Create a specific directory for this size
+
     TARGET_DIR="$BUILD_BASE/p_m_$m"
+
     mkdir -p "$TARGET_DIR"
 
-    # 1. Temporarily modify the circom file to set the group size
-    # Replace the 'Main(64, 4, X)' line with current size
-    sed -i "s/component main {public \[addrs, pubHashHi, pubHashLo, nonce\]} = Main(64, 4, [0-9]*);/component main {public [addrs, pubHashHi, pubHashLo, nonce]} = Main(64, 4, $m);/" "$CIRCUIT_NAME".circom
 
-    echo "**** COMPILING ****"
-    circom "$CIRCUIT_NAME".circom --r1cs --wasm --output "$TARGET_DIR"
+    # --------------------------------
+    # Patch circuit
+    # --------------------------------
 
-    echo "**** GENERATING ZKEY ****"
+    echo "⚙️  Setting group size..."
+
+    sed -i \
+      "s/component main {public \[addrs, pubHashHi, pubHashLo, nonce\]} = Main(64, 4, [0-9]*);/component main {public [addrs, pubHashHi, pubHashLo, nonce]} = Main(64, 4, $m);/" \
+      "$CIRCUIT_NAME.circom"
+
+
+    # --------------------------------
+    # Compile
+    # --------------------------------
+
+    echo "⚙️  Compiling..."
+
+    circom "$CIRCUIT_NAME.circom" \
+        --r1cs \
+        --wasm \
+        --sym \
+        --output "$TARGET_DIR"
+
+
+    # --------------------------------
     # Groth16 Setup
-    snarkjs groth16 setup "$TARGET_DIR/$CIRCUIT_NAME.r1cs" "$PHASE1" "$TARGET_DIR/temp_0.zkey"
+    # --------------------------------
 
-    # Quick Contribution (using 'test' as entropy)
-    echo "test" | snarkjs zkey contribute "$TARGET_DIR/temp_0.zkey" "$TARGET_DIR/temp_1.zkey" --name="Builder" -v -e="entropy"
+    echo "⚙️  Groth16 setup..."
 
-    # Final Beacon and ZKey
-    snarkjs zkey beacon "$TARGET_DIR/temp_1.zkey" "$TARGET_DIR/$CIRCUIT_NAME.zkey" 0102030405060708090a0b0c0d0e0f101112231415161718221a1b1c1d1e1f 10
+    snarkjs groth16 setup \
+        "$TARGET_DIR/$CIRCUIT_NAME.r1cs" \
+        "$PHASE1" \
+        "$TARGET_DIR/temp_0.zkey"
 
-    echo "**** EXPORTING VKEY ****"
-    snarkjs zkey export verificationkey "$TARGET_DIR/$CIRCUIT_NAME.zkey" "$TARGET_DIR/vkey.json"
 
-    # Cleanup intermediate files to save space
-    rm "$TARGET_DIR/temp_0.zkey" "$TARGET_DIR/temp_1.zkey" "$TARGET_DIR/$CIRCUIT_NAME.r1cs"
+    echo "test" | snarkjs zkey contribute \
+        "$TARGET_DIR/temp_0.zkey" \
+        "$TARGET_DIR/temp_1.zkey" \
+        --name="Builder" \
+        -v \
+        -e="entropy"
+
+
+    snarkjs zkey beacon \
+        "$TARGET_DIR/temp_1.zkey" \
+        "$TARGET_DIR/$CIRCUIT_NAME.zkey" \
+        0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f \
+        10
+
+
+    # --------------------------------
+    # Export vkey
+    # --------------------------------
+
+    echo "⚙️  Exporting verification key..."
+
+    snarkjs zkey export verificationkey \
+        "$TARGET_DIR/$CIRCUIT_NAME.zkey" \
+        "$TARGET_DIR/vkey.json"
+
+
+    # --------------------------------
+    # Export Solidity Verifier
+    # --------------------------------
+
+    if [ "$MAKE_VERIFIERS" = true ]; then
+
+        echo "⚙️  Exporting Solidity verifier..."
+
+        snarkjs zkey export solidityverifier \
+            "$TARGET_DIR/$CIRCUIT_NAME.zkey" \
+            "$VERIFIER_DIR/VerifierM$m.sol" \
+            --name "VerifierM$m"
+
+        echo "   → $VERIFIER_DIR/VerifierM$m.sol"
+    fi
+
+
+    # --------------------------------
+    # Cleanup
+    # --------------------------------
+
+    rm "$TARGET_DIR/temp_0.zkey"
+    rm "$TARGET_DIR/temp_1.zkey"
+    rm "$TARGET_DIR/$CIRCUIT_NAME.r1cs"
+
 
     echo "✅ Done for m=$m"
+    echo
+
 done
 
-echo "-------------------------------------------"
-echo "All builds complete in $BUILD_BASE"
+
+echo "==================================="
+echo " All builds complete"
+echo " Output: $BUILD_BASE"
+echo "==================================="
+
+if [ "$MAKE_VERIFIERS" = true ]; then
+    echo " Verifiers: $VERIFIER_DIR"
+fi
+
+echo
