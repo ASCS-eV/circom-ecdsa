@@ -38,8 +38,6 @@ note: the final circuit is in `./scripts/groupsig/prviate_secure_variable_groups
 2. test by running `node ./scripts/test_private_secure_variable_groupsig.js` while root folder of repo (note: the test script solely works for three group members which must be considered during the first step)
 3. copy the `./build/groupsig/verifiers` folder and add the folder to `./packages/trust-anchor-did-ethr/contracts` of the [on-chain-ssi repo](https://github.com/ASCS-eV/on-chain-ssi/tree/main/packages/trust-anchor-did-ethr/contracts)
 
-## Produce files for on-chain verification of
-
 ## Requirements for ASCS project goal
 1. Enhanced security:
     1. replay attack: solved with nonce logic
