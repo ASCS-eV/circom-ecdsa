@@ -32,11 +32,13 @@ Implementation of ECDSA operations in circom.
     6. nonce: 6789
 
 ## Build and test final circuit for ASCS project goal
-note: the final circuit is in `./scripts/groupsig/prviate_secure_variable_groupsig.circom`
+**note**: the final circuit is in `./scripts/groupsig/private_secure_variable_groupsig.circom`
 
 1. executing the script by running ``cd ./scripts/groupsig && ./build_private_groupsig_circuits.sh`` while root folder of repo
 2. test by running `node ./scripts/test_private_secure_variable_groupsig.js` while root folder of repo (note: the test script solely works for three group members which must be considered during the first step)
 3. copy the `./build/groupsig/verifiers` folder and add the folder to `./packages/trust-anchor-did-ethr/contracts` of the [on-chain-ssi repo](https://github.com/ASCS-eV/on-chain-ssi/tree/main/packages/trust-anchor-did-ethr/contracts)
+
+*note*: the final build script was used to generate the ``./build/groupsig/p_m_4`` folder which was added as `circom-zkp-generator` in `./packages/trust-anchor-did-ethr/test` folder of the [on-chain-ssi repo](https://github.com/ASCS-eV/on-chain-ssi/tree/main/packages/trust-anchor-did-ethr/contracts)`
 
 ## Requirements for ASCS project goal
 1. Enhanced security:

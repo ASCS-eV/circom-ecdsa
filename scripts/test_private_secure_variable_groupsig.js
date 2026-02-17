@@ -55,7 +55,7 @@ async function main() {
     const TOTAL_START = now();
 
     console.log("=================================");
-    console.log(" ZK GroupSig Performance Test");
+    console.log(" ZK GroupSig Performance Test (group size = 4)");
     console.log("=================================\n");
 
 
@@ -138,7 +138,7 @@ async function main() {
         "..",
         "build",
         "groupsig",
-        "p_m_3"
+        "p_m_4"
     );
 
     const wasmPath = path.join(

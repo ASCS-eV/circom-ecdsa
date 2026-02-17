@@ -137,17 +137,20 @@ do
     # --------------------------------
     # Export Solidity Verifier
     # --------------------------------
-
     if [ "$MAKE_VERIFIERS" = true ]; then
 
         echo "⚙️  Exporting Solidity verifier..."
 
+        # 1. Export with default name (usually 'Groth16Verifier')
         snarkjs zkey export solidityverifier \
             "$TARGET_DIR/$CIRCUIT_NAME.zkey" \
-            "$VERIFIER_DIR/VerifierM$m.sol" \
-            --name "VerifierM$m"
+            "$VERIFIER_DIR/VerifierM$m.sol"
 
-        echo "   → $VERIFIER_DIR/VerifierM$m.sol"
+        # 2. Use sed to rename the contract inside the file
+        # This replaces 'contract Groth16Verifier' with 'contract VerifierMm'
+        sed -i "s/contract Groth16Verifier/contract VerifierM$m/g" "$VERIFIER_DIR/VerifierM$m.sol"
+
+        echo "   → $VERIFIER_DIR/VerifierM$m.sol (renamed to VerifierM$m)"
     fi
 
 
