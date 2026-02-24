@@ -170,4 +170,4 @@ component main {public [
     pubHashHi,
     pubHashLo,
     nonce
-]} = Main(64, 4, 4);
+]} = Main(64, 4, 2);
