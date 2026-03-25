@@ -1,6 +1,5 @@
 const snarkjs = require('snarkjs');
 const readline = require('readline');
-const util = require('util');
 const { BigNumber, Wallet } = require('ethers');
 const fs = require('fs');
 const wc = require('../build/groupsig/groupsig_js/witness_calculator.js');
@@ -11,18 +10,11 @@ const vkey = './build/groupsig/vkey.json';
 const wtnsFile = './build/groupsig/witness.wtns';
 
 function isHex(str: string): boolean {
-    if (str.length % 2 !== 0) return false;
-    if (str.slice(0, 2) !== '0x') return false;
+    if (str.startsWith('0x')) str = str.slice(2);
     const allowedChars = '0123456789abcdefABCDEF';
-    for (let i = 2; i < str.length; i++)
+    for (let i = 0; i < str.length; i++)
         if (!allowedChars.includes(str[i]))
             return false;
-    return true;
-}
-
-function isValidPrivateKey(privkey: string): boolean {
-    if (privkey.length !== 66) return false;
-    if (!isHex(privkey)) return false;
     return true;
 }
 
@@ -53,23 +45,28 @@ async function generateWitness(inputs: any) {
     fs.writeFileSync(wtnsFile, buff);
 }
 
+// --- MAIN LOGIC ---
+
 async function run() {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
+    // 1. Private Key Input
     const privKeyStr = await new Promise<string>((res) => {
         rl.question("Enter an ETH private key:\n", (ans: string) => {
             res(ans);
         })
-    })
+    });
     const wallet = new Wallet(privKeyStr);
     console.log(`Your address is: ${wallet.address}`);
 
+    // 2. Group Addresses Input
     const groupAddr1 = await new Promise<string>((res) => {
         rl.question("Enter address 1 for your group:\n", (ans: string) => {
             res(ans);
         })
     });
     if (!isValidAddr(groupAddr1)) throw new Error('not a valid ETH address');
+
     const groupAddr2 = await new Promise<string>((res) => {
         rl.question("Enter address 2 for your group:\n", (ans: string) => {
             res(ans);
@@ -77,6 +74,7 @@ async function run() {
     });
     if (!isValidAddr(groupAddr2)) throw new Error('not a valid ETH address');
 
+    // Randomize position of your address in the group of 3
     const idx1 = Math.floor(Math.random() * 3);
     let idx2 = Math.floor(Math.random() * 2);
     if (idx2 >= idx1) idx2++;
@@ -87,8 +85,15 @@ async function run() {
     groupAddresses[idx2] = BigInt(groupAddr1);
     groupAddresses[idx3] = BigInt(groupAddr2);
 
+    // 3. Message and Nonce Input
     const msg = await new Promise<string>((res) => {
-        rl.question("Enter a message to sign (number between 0 and babyjubjubprime - 1):\n", (ans: string) => {
+        rl.question("Enter a message to sign:\n", (ans: string) => {
+            res(ans);
+        })
+    });
+
+    const nonce = await new Promise<string>((res) => {
+        rl.question("Enter a nonce (e.g., 0, 1, 2...):\n", (ans: string) => {
             res(ans);
         })
     });
@@ -98,39 +103,34 @@ async function run() {
         addr1: groupAddresses[0],
         addr2: groupAddresses[1],
         addr3: groupAddresses[2],
-        msg
+        msg,
+        nonce
     };
 
-    console.log(input);
-
-    // for some reason fullprove is broken currently: https://github.com/iden3/snarkjs/issues/107
+    // 4. Witness and Proof Generation
     console.log('generating witness...');
-    const wtnsStart = Date.now();
     await generateWitness(input);
-    console.log(`generated witness. took ${Date.now() - wtnsStart}ms`);
 
-    const pfStart = Date.now();
     console.log('generating proof...');
     const { proof, publicSignals } = await snarkjs.groth16.prove(zkey, wtnsFile);
-    console.log(proof);
-    console.log(publicSignals);
-    console.log(`generated proof. took ${Date.now() - pfStart}ms`);
 
-    const verifyStart = Date.now();
-    console.log('verifying proof...');
-
+    // 5. Verification
     const vkeyJson = JSON.parse(fs.readFileSync(vkey));
-    const res = await snarkjs.groth16.verify(vkeyJson, publicSignals, proof);
-    if (res === true) {
-        console.log("Verification OK");
-        console.log(`verified that one of these addresses signed ${publicSignals[4]}:`);
-        console.log(BigNumber.from(publicSignals[1]).toHexString());
-        console.log(BigNumber.from(publicSignals[2]).toHexString());
-        console.log(BigNumber.from(publicSignals[3]).toHexString());
+    const verified = await snarkjs.groth16.verify(vkeyJson, publicSignals, proof);
+
+    if (verified === true) {
+        console.log("-----------------------------------------");
+        console.log("✅ Verification SUCCESSFUL");
+        console.log(`Message: ${publicSignals[4]}`);
+        console.log(`Nonce:   ${publicSignals[5]}`);
+        console.log("Signed by one of these members:");
+        console.log(`- ${BigNumber.from(publicSignals[1]).toHexString()}`);
+        console.log(`- ${BigNumber.from(publicSignals[2]).toHexString()}`);
+        console.log(`- ${BigNumber.from(publicSignals[3]).toHexString()}`);
+        console.log("-----------------------------------------");
     } else {
-        console.log("Invalid proof");
+        console.log("❌ Invalid proof");
     }
-    console.log(`verification took ${Date.now() - verifyStart}ms`);
     
     process.exit(0);
 }

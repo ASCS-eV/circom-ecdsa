@@ -6,9 +6,7 @@ include "../../circuits/eth_addr.circom";
 
 /*
   Inputs:
-  - addr1 (pub)
-  - addr2 (pub)
-  - addr3 (pub)
+  - addrs[m] (pub)
   - msg (pub)
   - nonce (pub)
   - privkey
@@ -21,17 +19,16 @@ include "../../circuits/eth_addr.circom";
   
   Prove:
   - PrivKeyToAddr(privkey) == myAddr
-  - (x - addr1)(x - addr2)(x - addr3) == 0
-  - msgAttestation == mimc(msg, privkey)
+  - (myAddr - addrs[0]) * (myAddr - addrs[1]) * ... * (myAddr - addrs[m-1]) == 0
+  - msgAttestation == mimc(msg, nonce, privkey)
 */
 
 // TODO:
-// 1. add nonce for safegarding against replac attacks
-// 2. make scalable so that instead of addr1, addr2, and addr3 an array is used called: addrs
-// 3. fix: No domain separation issue casued by cross-context replay
-// 4. check validity of public key
+// - Make msg private to avoid public being able to find out its signer by checking the public msg with every eth address in the public addrs[m] input
+// - Adapt msg logic for use case and ensure domain separation by that msg is "publish-${cid}-for-${company}-on-${marketplace}"
 
-template Main(n, k) {
+// n: bits per word, k: number of words for privkey, m: number of addresses in group
+template Main(n, k, m) {
     assert(n * k >= 256);
     assert(n * (k-1) < 256);
 
@@ -39,9 +36,7 @@ template Main(n, k) {
     signal input privkey[k];
 
     // public inputs
-    signal input addr1;
-    signal input addr2;
-    signal input addr3;
+    signal input addrs[m]; // Scalable array of addresses
     signal input msg;
     signal input nonce; // to protect against replay attacks
 
@@ -63,13 +58,20 @@ template Main(n, k) {
     }
     myAddr <== privToAddr.addr; // enforces: "I know a private key whose Ethereum address is myAddr"
 
-    // verify address is one of the provided
-    signal temp;
-    temp <== (myAddr - addr1) * (myAddr - addr2);
-    0 === temp * (myAddr - addr3); // enforces: "I know myAddr is part of group (= addr1-3)"
+    // verify address is one of the provided (SCALABLE MEMBERSHIP CHECK)
+    // We check: (myAddr - addrs[0]) * (myAddr - addrs[1]) * ... * (myAddr - addrs[m-1]) === 0
+    // If myAddr is equal to any one of the addrs, the entire product becomes zero.
+    signal products[m];
+    products[0] <== myAddr - addrs[0];
+    for (var i = 1; i < m; i++) {
+        products[i] <== products[i-1] * (myAddr - addrs[i]);
+    }
+    
+    // The final result must be 0
+    0 === products[m-1]; // enforces: "I know myAddr is part of group (= addrs[m])"
     
     // produce signature
-    component mimcAttestation = MiMCSponge(k+2, 220, 1); //+2 bcause of msg and nonce
+    component mimcAttestation = MiMCSponge(k+2, 220, 1); //+2 because of msg and nonce
     mimcAttestation.ins[0] <== msg;
     mimcAttestation.ins[1] <== nonce; // bind the proof to this specific nonce
     for (var i = 0; i < k; i++) {
@@ -79,4 +81,5 @@ template Main(n, k) {
     msgAttestation <== mimcAttestation.outs[0];
 }
 
-component main {public [addr1, addr2, addr3, msg, nonce]} = Main(64, 4);
+// Set 'm' (third argument) to the number of addresses you want in your group
+component main {public [addrs, msg, nonce]} = Main(64, 4, 4);
