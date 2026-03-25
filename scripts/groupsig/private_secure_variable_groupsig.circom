@@ -114,7 +114,7 @@ template Main(n, k, m) {
     // --------------------------------------------------
 
     // Proves:
-    // I know the preimage of pubHash
+    // I know the preimage of pubHash (that was produced within a trustworthy environment, such as a smart contract)
     privHashHi === pubHashHi;
     privHashLo === pubHashLo;
 
